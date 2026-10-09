@@ -2,6 +2,23 @@
 
 带 Web 界面的 S3 兼容对象存储管理与迁移工具，支持 AWS S3、MinIO、阿里云 OSS、腾讯云 COS 等。
 
+## 在线演示
+演示站点：https://1a5l2eg.pub.atoms.world/ （演示账号 `demo` / `demo123`）
+
+## 功能截图
+| 登录页 | 迁移任务 |
+|---|---|
+| ![登录](screenshots/01-login.png) | ![迁移任务](screenshots/02-tasks.png) |
+| **存储连接** | **对象浏览** |
+| ![存储连接](screenshots/03-connections.png) | ![对象浏览](screenshots/04-browser.png) |
+| **管理后台** | **修改密码** |
+| ![管理后台](screenshots/05-admin.png) | ![修改密码](screenshots/06-change-password.png) |
+
+## 技术栈
+- 前端：React 18、TypeScript、Vite、Tailwind CSS、shadcn/ui、framer-motion
+- 后端：Python FastAPI、boto3、SQLAlchemy（asyncpg）、PostgreSQL、JWT 认证
+- 部署：Docker Compose（Postgres + 后端 + Nginx 托管前端并反代 /api）
+
 ## 功能
 - 账号密码注册/登录、修改密码；用户数据相互隔离
 - 存储连接管理（密钥加密保存）
