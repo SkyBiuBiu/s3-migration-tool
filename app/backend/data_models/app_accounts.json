@@ -1,0 +1,26 @@
+{
+    "title": "app_accounts",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "integer",
+            "autoincrement": true,
+            "primary_key": true
+        },
+        "username": {
+            "type": "string",
+            "unique": true
+        },
+        "password_hash": {
+            "type": "string"
+        },
+        "account_user_id": {
+            "type": "string"
+        }
+    },
+    "required": [
+        "username",
+        "password_hash",
+        "account_user_id"
+    ]
+}

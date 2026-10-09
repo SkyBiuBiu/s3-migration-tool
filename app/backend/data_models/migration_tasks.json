@@ -1,0 +1,126 @@
+{
+    "title": "migration_tasks",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "integer",
+            "autoincrement": true,
+            "primary_key": true
+        },
+        "user_id": {
+            "type": "string"
+        },
+        "name": {
+            "type": "string"
+        },
+        "source_id": {
+            "type": "integer"
+        },
+        "target_id": {
+            "type": "integer"
+        },
+        "source_prefix": {
+            "type": "string"
+        },
+        "target_prefix": {
+            "type": "string"
+        },
+        "skip_existing": {
+            "type": "boolean"
+        },
+        "sync_mode": {
+            "type": "string"
+        },
+        "verify": {
+            "type": "boolean"
+        },
+        "concurrency": {
+            "type": "integer"
+        },
+        "bandwidth_mbps": {
+            "type": "number"
+        },
+        "include_suffixes": {
+            "type": "string"
+        },
+        "exclude_suffixes": {
+            "type": "string"
+        },
+        "min_size": {
+            "type": "number"
+        },
+        "max_size": {
+            "type": "number"
+        },
+        "modified_after": {
+            "type": "string"
+        },
+        "modified_before": {
+            "type": "string"
+        },
+        "status": {
+            "type": "string"
+        },
+        "continuation_token": {
+            "type": "string"
+        },
+        "prefix_queue": {
+            "type": "string"
+        },
+        "listing_done": {
+            "type": "boolean"
+        },
+        "pending_keys": {
+            "type": "string"
+        },
+        "total_count": {
+            "type": "integer"
+        },
+        "total_bytes": {
+            "type": "number"
+        },
+        "done_count": {
+            "type": "integer"
+        },
+        "skipped_count": {
+            "type": "integer"
+        },
+        "failed_count": {
+            "type": "integer"
+        },
+        "verified_count": {
+            "type": "integer"
+        },
+        "bytes_transferred": {
+            "type": "integer"
+        },
+        "bytes_copied": {
+            "type": "number"
+        },
+        "processed_bytes": {
+            "type": "number"
+        },
+        "failed_items": {
+            "type": "string"
+        },
+        "logs": {
+            "type": "string"
+        },
+        "error_message": {
+            "type": "string"
+        },
+        "locked_until": {
+            "type": "number"
+        },
+        "last_run_at": {
+            "type": "number"
+        }
+    },
+    "required": [
+        "name",
+        "source_id",
+        "target_id",
+        "status",
+        "user_id"
+    ]
+}
