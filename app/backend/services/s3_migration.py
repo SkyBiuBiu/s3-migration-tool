@@ -51,7 +51,28 @@ def mask(value: Optional[str]) -> str:
 
 
 # ---------- client ----------
+_CLIENTS: Dict[tuple, Any] = {}
+_CLIENTS_LOCK = threading.Lock()
+_CLIENTS_MAX = 64
+
+
 def make_client(conn: Dict[str, Any]):
+    """Return a cached boto3 client (thread-safe) so connections/TLS sessions are reused."""
+    key = tuple((conn.get(k) or "").strip() if isinstance(conn.get(k), str) else conn.get(k)
+                for k in ("endpoint", "region", "access_key", "secret_key", "bucket", "path_style"))
+    with _CLIENTS_LOCK:
+        client = _CLIENTS.get(key)
+    if client is not None:
+        return client
+    client = _new_client(conn)
+    with _CLIENTS_LOCK:
+        if len(_CLIENTS) >= _CLIENTS_MAX:
+            _CLIENTS.pop(next(iter(_CLIENTS)))
+        _CLIENTS[key] = client
+    return client
+
+
+def _new_client(conn: Dict[str, Any]):
     endpoint = (conn.get("endpoint") or "").strip() or None
     if endpoint:
         if not endpoint.startswith(("http://", "https://")):

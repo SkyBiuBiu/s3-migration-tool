@@ -48,27 +48,60 @@ export default function Browser({ conns }: { conns: Connection[] }) {
     setSelObjs(new Map());
   };
 
-  const load = useCallback(async (id: string, p: string, token?: string) => {
-    setLoading(true);
+  const cache = useRef(new Map<string, Listing>());
+  const inflight = useRef(new Map<string, Promise<Listing>>());
+  const reqId = useRef(0);
+
+  const fetchListing = useCallback((id: string, p: string) => {
+    const k = `${id}|${p}`;
+    let pr = inflight.current.get(k);
+    if (!pr) {
+      pr = api<Listing>('/api/v1/s3/browse', { connection_id: Number(id), prefix: p })
+        .then((r) => { cache.current.set(k, r); return r; })
+        .finally(() => inflight.current.delete(k));
+      inflight.current.set(k, pr);
+    }
+    return pr;
+  }, []);
+
+  const prefetch = (p: string) => {
+    if (connId && !cache.current.has(`${connId}|${p}`)) fetchListing(connId, p).catch(() => undefined);
+  };
+
+  const load = useCallback(async (id: string, p: string, token?: string, force = false) => {
+    const my = ++reqId.current;
     setError('');
     setSearchInfo(null);
-    if (!token) clearSel();
+    if (!token) {
+      clearSel();
+      const hit = cache.current.get(`${id}|${p}`);
+      if (hit) setData(hit);
+      if (force) cache.current.delete(`${id}|${p}`);
+    }
+    setLoading(true);
     try {
-      const r = await api<Listing>('/api/v1/s3/browse', { connection_id: Number(id), prefix: p, token });
-      setData((prev) => (token && prev ? { ...r, folders: [...prev.folders, ...r.folders], objects: [...prev.objects, ...r.objects] } : r));
+      if (token) {
+        const r = await api<Listing>('/api/v1/s3/browse', { connection_id: Number(id), prefix: p, token });
+        if (my !== reqId.current) return;
+        setData((prev) => (prev ? { ...r, folders: [...prev.folders, ...r.folders], objects: [...prev.objects, ...r.objects] } : r));
+      } else {
+        const r = await fetchListing(id, p);
+        if (my === reqId.current) setData(r);
+      }
     } catch (e) {
+      if (my !== reqId.current) return;
       setError(errMsg(e));
       setData(null);
     } finally {
-      setLoading(false);
+      if (my === reqId.current) setLoading(false);
     }
-  }, []);
+  }, [fetchListing]);
 
   useEffect(() => {
     if (connId) load(connId, prefix);
   }, [connId, prefix, load]);
 
-  const refresh = () => connId && load(connId, prefix);
+  const refresh = () => connId && load(connId, prefix, undefined, true);
 
   const doSearch = async () => {
     if (!query.trim()) return refresh();
@@ -276,7 +309,7 @@ export default function Browser({ conns }: { conns: Connection[] }) {
             {error && <p className="p-4 text-sm text-[#B91C1C]">{error}</p>}
             {loading && !data && <div className="p-6 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin" /></div>}
             {data && (
-              <div className="overflow-x-auto">
+              <div className={`overflow-x-auto transition-opacity ${loading ? 'opacity-70' : ''}`}>
                 <table className="w-full text-sm">
                   <thead className="bg-[#F4F6F5] text-left text-xs text-[#5B6B66]">
                     <tr>
@@ -288,7 +321,7 @@ export default function Browser({ conns }: { conns: Connection[] }) {
                     {data.folders.map((f) => (
                       <tr key={f} className="border-t border-[#EEF1EF] hover:bg-[#F4F6F5]">
                         <td className="px-4 py-2"><Checkbox aria-label="选择文件夹" checked={selFolders.has(f)} onCheckedChange={() => toggleFolder(f)} /></td>
-                        <td className="mono cursor-pointer px-2 py-2" onClick={() => setPrefix(f)}><Folder className="mr-2 inline h-4 w-4 text-[#B45309]" />{f.slice(prefix.length)}</td>
+                        <td className="mono cursor-pointer px-2 py-2" onMouseEnter={() => prefetch(f)} onClick={() => setPrefix(f)}><Folder className="mr-2 inline h-4 w-4 text-[#B45309]" />{f.slice(prefix.length)}</td>
                         <td className="px-4 py-2">-</td><td className="px-4 py-2">-</td><td className="px-4 py-2">-</td><td />
                       </tr>
                     ))}
