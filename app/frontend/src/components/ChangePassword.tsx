@@ -2,11 +2,19 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { api, errMsg } from '@/lib/s3api';
 
-export default function ChangePassword({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+interface Props {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  /** When true the dialog cannot be dismissed until the password is changed. */
+  forced?: boolean;
+  onChanged?: () => void;
+}
+
+export default function ChangePassword({ open, onOpenChange, forced, onChanged }: Props) {
   const [oldPw, setOldPw] = useState('');
   const [newPw, setNewPw] = useState('');
   const [confirmPw, setConfirmPw] = useState('');
@@ -21,6 +29,7 @@ export default function ChangePassword({ open, onOpenChange }: { open: boolean; 
       await api('/api/v1/s3/account/change_password', { old_password: oldPw, new_password: newPw });
       toast.success('密码已修改');
       setOldPw(''); setNewPw(''); setConfirmPw('');
+      onChanged?.();
       onOpenChange(false);
     } catch (err) {
       toast.error(errMsg(err));
@@ -30,9 +39,16 @@ export default function ChangePassword({ open, onOpenChange }: { open: boolean; 
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader><DialogTitle>修改密码</DialogTitle></DialogHeader>
+    <Dialog open={open} onOpenChange={(v) => !forced && onOpenChange(v)}>
+      <DialogContent
+        className={`sm:max-w-sm ${forced ? '[&>button:last-child]:hidden' : ''}`}
+        onInteractOutside={(e) => forced && e.preventDefault()}
+        onEscapeKeyDown={(e) => forced && e.preventDefault()}
+      >
+        <DialogHeader>
+          <DialogTitle>{forced ? '请先修改初始密码' : '修改密码'}</DialogTitle>
+          {forced && <DialogDescription>当前账号仍在使用初始密码，为保障安全，修改后才能继续使用。</DialogDescription>}
+        </DialogHeader>
         <form onSubmit={submit} className="space-y-3">
           <div className="space-y-1"><Label>原密码</Label><Input type="password" value={oldPw} onChange={(e) => setOldPw(e.target.value)} required /></div>
           <div className="space-y-1"><Label>新密码</Label><Input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} required /></div>

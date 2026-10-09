@@ -22,8 +22,21 @@ ITERATIONS = 200_000
 TOKEN_MINUTES = 60 * 24 * 7
 
 
-DEFAULT_ADMIN_USERNAME = "demo"
-DEFAULT_ADMIN_PASSWORD = "demo123"
+DEFAULT_ADMIN_USERNAME = os.environ.get("DEFAULT_ADMIN_USERNAME") or "demo"
+DEFAULT_ADMIN_PASSWORD = os.environ.get("DEFAULT_ADMIN_PASSWORD") or "demo123"
+
+
+def force_password_change_enabled() -> bool:
+    return (os.environ.get("FORCE_PASSWORD_CHANGE") or "").lower() in ("1", "true", "yes")
+
+
+async def must_change_password(db: AsyncSession, user_id: str) -> bool:
+    """True when forced change is enabled and the account still uses the seeded initial password."""
+    if not force_password_change_enabled():
+        return False
+    acc = await db.scalar(select(App_accounts).where(App_accounts.account_user_id == user_id))
+    return bool(acc and acc.username == DEFAULT_ADMIN_USERNAME
+                and verify_password(DEFAULT_ADMIN_PASSWORD, acc.password_hash))
 
 
 async def ensure_default_admin(db: AsyncSession) -> None:
@@ -119,6 +132,8 @@ async def change_password(
         raise HTTPException(status_code=400, detail="原密码错误")
     if len(data.new_password) < 6:
         raise HTTPException(status_code=400, detail="新密码至少 6 位")
+    if data.new_password == data.old_password:
+        raise HTTPException(status_code=400, detail="新密码不能与原密码相同")
     acc.password_hash = hash_password(data.new_password)
     await db.commit()
     return {"ok": True}

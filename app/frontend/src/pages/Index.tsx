@@ -29,7 +29,7 @@ const FEATURES = [
 
 export default function Index() {
   const [auth, setAuth] = useState<'loading' | 'in' | 'out' | 'disabled'>('loading');
-  const [me, setMe] = useState<{ id: string; role: string } | null>(null);
+  const [me, setMe] = useState<{ id: string; role: string; must_change_password?: boolean } | null>(null);
   const [conns, setConns] = useState<Connection[]>([]);
   const [view, setView] = useState<View>('tasks');
   const [pwOpen, setPwOpen] = useState(false);
@@ -38,7 +38,7 @@ export default function Index() {
     const check = async () => {
       if (!localStorage.getItem(TOKEN_KEY)) return setAuth('out');
       try {
-        setMe(await api<{ id: string; role: string }>('/api/v1/s3/me', {}, 'GET'));
+        setMe(await api<{ id: string; role: string; must_change_password?: boolean }>('/api/v1/s3/me', {}, 'GET'));
         setAuth('in');
       } catch (e) {
         const msg = errMsg(e);
@@ -147,11 +147,18 @@ main table tbody tr{transition:background-color .15s}`}</style>
             </nav>
             <div className="absolute bottom-0 hidden w-64 border-t border-white/10 p-3 lg:block">
               <button onClick={() => setPwOpen(true)} className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm text-[#A7B8B2] hover:bg-white/5 hover:text-white"><KeyRound className="h-4 w-4" />修改密码</button>
-              <ChangePassword open={pwOpen} onOpenChange={setPwOpen} />
+
               <button onClick={() => logoutLocal()} className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm text-[#A7B8B2] hover:bg-white/5 hover:text-white"><LogOut className="h-4 w-4" />退出登录</button>
             </div>
           </aside>
 
+          <ChangePassword open={pwOpen} onOpenChange={setPwOpen} />
+          <ChangePassword
+            forced
+            open={!!me?.must_change_password}
+            onOpenChange={() => undefined}
+            onChanged={() => setMe((m) => (m ? { ...m, must_change_password: false } : m))}
+          />
           <main className="app-bg min-w-0 flex-1">
             <div className="mx-auto max-w-[1100px] px-4 py-6 lg:px-10 lg:py-10">
               <AnimatePresence mode="wait">

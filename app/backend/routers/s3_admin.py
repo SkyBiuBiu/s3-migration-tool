@@ -10,7 +10,7 @@ from core.database import get_db
 from dependencies.app_user import ROLES, get_app_admin, get_app_user
 from models.auth import User
 from models.app_accounts import App_accounts
-from routers.s3_account import hash_password
+from routers.s3_account import hash_password, must_change_password
 from models.migration_tasks import Migration_tasks
 from models.storage_connections import Storage_connections
 from schemas.auth import UserResponse
@@ -25,8 +25,9 @@ class RoleIn(BaseModel):
 
 
 @router.get("/me")
-async def me(user: UserResponse = Depends(get_app_user)):
-    return {"id": user.id, "email": user.email, "name": user.name, "role": user.role}
+async def me(user: UserResponse = Depends(get_app_user), db: AsyncSession = Depends(get_db)):
+    return {"id": user.id, "email": user.email, "name": user.name, "role": user.role,
+            "must_change_password": await must_change_password(db, user.id)}
 
 
 @router.get("/admin/users")

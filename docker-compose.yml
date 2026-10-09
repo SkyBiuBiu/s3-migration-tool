@@ -12,14 +12,31 @@ services:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       retries: 10
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 512M }
 
   backend:
     build: ./app/backend
     restart: unless-stopped
     env_file: .env
+    volumes:
+      - backend-logs:/app/logs
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      start_period: 20s
+      retries: 5
+    deploy:
+      resources:
+        limits: { cpus: "2.0", memory: 1G }
+    logging:
+      driver: json-file
+      options: { max-size: "20m", max-file: "5" }
 
   web:
     build: ./app/frontend
@@ -27,7 +44,20 @@ services:
     ports:
       - "${WEB_PORT:-8080}:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 128M }
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
 
 volumes:
   pgdata:
+  backend-logs:

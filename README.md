@@ -52,7 +52,13 @@ docker compose up -d --build
 ```
 访问 `http://<服务器IP>:8080`。
 
-首次启动会自动创建默认管理员 **demo / demo123**，登录后请立即通过「修改密码」更改。
+首次启动会按 `.env` 中的 `DEFAULT_ADMIN_USERNAME` / `DEFAULT_ADMIN_PASSWORD` 自动创建管理员（示例为 `admin` / `ChangeMe@2024`）。`FORCE_PASSWORD_CHANGE=true` 时，该账号首次登录会弹出无法关闭的改密窗口，修改后才能使用。
+
+运维常用命令：
+```bash
+docker compose ps                 # 查看各服务健康状态
+docker compose logs -f backend    # 查看后端日志（同时持久化在 backend-logs 卷）
+```
 
 ## 本地开发
 ```bash
@@ -66,6 +72,16 @@ uvicorn main:app --reload --port 8000
 cd app/frontend
 pnpm install && pnpm dev
 ```
+
+## 测试与 CI
+```bash
+cd app/backend
+pip install -r requirements-dev.txt
+pytest -q
+```
+单元测试基于 moto 模拟 S3，覆盖：前缀映射、过滤规则、小文件复制与元数据保留（服务端复制 / 流式复制两条路径）、大文件分片上传、断点续传（跳过已存在）、变更检测重传、全量覆盖、失败上报与重试、时间片用完后剩余任务续跑、目录占位对象过滤、客户端缓存复用、密码哈希。
+
+GitHub Actions（`.github/workflows/ci.yml`）在每次 push / PR 时执行：后端 ruff 检查 + pytest → 前端 lint + build → `docker compose build` 并启动整套服务，轮询 `/health` 做冒烟测试，失败时输出容器日志。
 
 ## 注意事项
 - 浏览器直传大于 5MB 的文件使用预签名 URL，需要在目标 Bucket 配置 CORS（允许 PUT，暴露 ETag）。
@@ -119,20 +135,19 @@ pnpm install && pnpm dev
 - **部署**：Docker Compose 一键启动（Postgres + 后端 + Nginx）
 
 ### 未完成 / 已知限制
-- **无自动化测试**：功能均为手动验证，没有单元测试与集成测试
-- **Docker 镜像未实测**：Dockerfile 与 compose 文件按标准写法编写，但尚未在干净环境完整构建运行过
+- **测试覆盖有限**：迁移引擎已有单元测试，但 HTTP 接口层、任务调度循环与前端尚无自动化测试
 - **单实例限制**：后端多副本部署时任务调度会冲突
 - **账号能力不全**：无邮箱验证、无找回密码、无操作审计日志
 - **迁移能力边界**：不支持对象元数据/ACL/存储类型的完整保留，不支持增量同步（仅按前缀全量），不支持定时任务
 - **前端细节**：超大目录（万级对象）未做虚拟滚动，列表仅分页
-- **安全**：默认管理员 demo/demo123 为方便演示而预置，正式部署必须立即修改
+- **安全**：演示站点保留 demo/demo123 便于体验；自部署时默认管理员由环境变量配置，并强制首次登录改密
 
 ## 三、后续扩展规划
 
-### P0 — 生产可用的必要补强
-1. **自动化测试与 CI**：针对迁移引擎的分片、重试、断点续传补单元测试，GitHub Actions 跑 lint + test + 镜像构建。当前最大的风险是迁移逻辑改动后无回归保障。
-2. **Docker 部署实测与完善**：在干净环境验证构建，补健康检查、日志卷与资源限制。
-3. **移除演示账号 / 强制改密**：首次登录强制修改初始密码。
+### P0 — 生产可用的必要补强（✅ 已完成）
+1. ✅ **自动化测试与 CI**：`app/backend/tests/` 用 moto 模拟 S3，为迁移引擎补了 13 个单元测试，覆盖分片上传、失败重试、断点续传、同步模式与时间片续跑；GitHub Actions 依次运行 lint、单元测试、前端构建和镜像构建。
+2. ✅ **Docker 部署完善**：后端、前端、数据库三个服务都配置了健康检查，前端要等后端健康后才启动；后端日志持久化到 `backend-logs` 卷，容器日志自动轮转；为每个服务设置了 CPU 和内存上限。CI 会在干净的 Runner 上完整构建，启动后做 `/health` 冒烟测试。
+3. ✅ **默认账号与强制改密**：默认管理员的用户名和密码改为通过环境变量配置，不再写死在代码里；`FORCE_PASSWORD_CHANGE=true` 时，仍在使用初始密码的账号登录后会弹出无法关闭的改密窗口；新密码不能与原密码相同。
 
 ### P1 — 核心能力增强
 4. **任务队列与多副本**：引入 Redis + 独立 Worker，让迁移与 Web 服务解耦，支持横向扩容和任务并发度控制。这是从「可用」走向「能扛量」的关键一步。
