@@ -1,6 +1,6 @@
 FROM node:20-alpine AS build
 WORKDIR /app
-RUN corepack enable
+RUN npm i -g pnpm@9 --silent
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY . .
