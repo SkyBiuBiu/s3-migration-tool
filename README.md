@@ -73,6 +73,20 @@ cd app/frontend
 pnpm install && pnpm dev
 ```
 
+## 版本发布与镜像制品
+每次更新都会打一个语义化版本 tag（如 `v1.0.0`），推送 tag 后 `.github/workflows/release.yml` 自动：
+1. 构建前后端镜像（linux/amd64 + arm64）并推送到 GitHub Container Registry：
+   - `ghcr.io/skybiubiu/s3-migration-backend:<版本>`（同时更新 `latest`）
+   - `ghcr.io/skybiubiu/s3-migration-frontend:<版本>`
+2. 创建 GitHub Release，附带使用预构建镜像的 `docker-compose.yml` 与部署包，并自动生成变更说明。
+
+使用预构建镜像部署（无需源码）：在 Releases 页面下载 `s3-migration-tool-<版本>-deploy.tar.gz`，解压后 `cp .env.example .env` 修改配置，执行 `docker compose up -d`。
+
+发布新版本：
+```bash
+git tag v1.0.1 && git push origin v1.0.1
+```
+
 ## 测试与 CI
 ```bash
 cd app/backend
